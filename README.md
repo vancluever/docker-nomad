@@ -78,3 +78,5 @@ ports from the host.
 
 Watch this space and the [GitHub repo][8] for more examples, such as running as
 a service, more details on internals, and what not.
+
+[8]: https://github.com/vancluever/docker-nomad
