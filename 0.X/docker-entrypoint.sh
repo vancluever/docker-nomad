@@ -34,6 +34,21 @@ if [ -n "$NOMAD_LOCAL_CONFIG" ]; then
 	echo "$NOMAD_LOCAL_CONFIG" > "$NOMAD_CONFIG_DIR/local.json"
 fi
 
+# DOCKER_GID, if set, will create a "docker" group with the GID passed in to
+# the environment variable. This is to facilitate permission to any bind
+# mounted docker socket.
+# 
+# Note that this will conflict if an image is built off of this one with Docker
+# in it - if the group already exists, this will fail.
+if [ -n "$DOCKER_GID" ]; then
+  if [ "$(getent group docker > /dev/null; echo $?)" -eq "0" ]; then
+    echo "DOCKER_GID supplied and docker group already exists"
+    exit 1
+  fi
+  echo "==> Creating Docker group as gid $DOCKER_GID <=="
+  echo "docker:x:${DOCKER_GID}:nomad" >> /etc/group
+fi
+
 # If the user is trying to run Nomad directly with some arguments, then
 # pass them to Nomad.
 if [ "${1:0:1}" = '-' ]; then
