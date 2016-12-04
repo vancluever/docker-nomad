@@ -64,7 +64,7 @@ and fail if we see a Docker group with the GID passed in.
 
 ### Development Mode
 
-Runing this container with no arguments will load the container in development
+Running this container with no arguments will load the container in development
 mode.
 
 ```
