@@ -74,6 +74,22 @@ docker run --net=host --rm vancluever/nomad
 `--net=host` is important to ensure that you will be able to reach respective
 ports from the host.
 
+## Running with Data Dir Mounted
+
+If you are running Nomad just as an easy way to get the software, but
+otherwise are running off the host, you may need to mount the data directory
+to the host:
+
+```
+docker run --net=host --volume /var/run/docker.sock:/var/run/docker.sock \
+  --volume /tmp:/tmp --volume /nomad/data:/nomad/data \
+  --env DOCKER_GID=`getent group docker | cut -d: -f3` \
+  --rm vancluever/nomad agent AGENTOPTS
+```
+
+Note that `AGENTOPTS` here represents the agent options that would need to be
+added to agent, example: `-server`.
+
 ## Coming Soon
 
 Watch this space and the [GitHub repo][8] for more examples, such as running as
