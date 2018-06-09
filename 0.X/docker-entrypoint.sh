@@ -28,25 +28,22 @@ fi
 NOMAD_DATA_DIR=/nomad/data
 NOMAD_CONFIG_DIR=/nomad/config
 
+# If NOMAD_RUN_ROOT is selected, then run as root. This will be necessary to
+# run pretty much any job on the host, so it needs to be set for client and
+# development mode.
+if [ -n "${NOMAD_RUN_ROOT}" ]; then
+  echo "==> NOMAD_RUN_ROOT specified, running Nomad as root."
+  NOMAD_RUN_USER="root"
+else
+  echo "==> Running Nomad as unprivileged \"nomad\" user"
+  echo "==> Set NOMAD_RUN_ROOT if job execution is required"
+  NOMAD_RUN_USER="nomad"
+fi
+
 # You can also set the NOMAD_LOCAL_CONFIG environemnt variable to pass some
 # Nomad configuration JSON without having to bind any volumes.
 if [ -n "$NOMAD_LOCAL_CONFIG" ]; then
 	echo "$NOMAD_LOCAL_CONFIG" > "$NOMAD_CONFIG_DIR/local.json"
-fi
-
-# DOCKER_GID, if set, will create a "docker" group with the GID passed in to
-# the environment variable. This is to facilitate permission to any bind
-# mounted docker socket.
-# 
-# Note that this will conflict if an image is built off of this one with Docker
-# in it - if the group already exists, this will fail.
-if [ -n "$DOCKER_GID" ]; then
-  if [ "$(getent group docker > /dev/null; echo $?)" -eq "0" ]; then
-    echo "DOCKER_GID supplied and docker group already exists"
-    exit 1
-  fi
-  echo "==> Creating Docker group as gid $DOCKER_GID <=="
-  echo "docker:x:${DOCKER_GID}:nomad" >> /etc/group
 fi
 
 # If the user is trying to run Nomad directly with some arguments, then
@@ -77,14 +74,14 @@ fi
 if [ "$1" = 'nomad' ]; then
     # If the data or config dirs are bind mounted then chown them.
     # Note: This checks for root ownership as that's the most common case.
-    if [ "$(stat -c %u /nomad/data)" != "$(id -u nomad)" ]; then
-        chown nomad:nomad /nomad/data
+    if [ "$(stat -c %u /nomad/data)" != "$(id -u ${NOMAD_RUN_USER})" ]; then
+        chown "${NOMAD_RUN_USER}":nomad /nomad/data
     fi
-    if [ "$(stat -c %u /nomad/config)" != "$(id -u nomad)" ]; then
-        chown nomad:nomad /nomad/config
+    if [ "$(stat -c %u /nomad/config)" != "$(id -u ${NOMAD_RUN_USER})" ]; then
+        chown "${NOMAD_RUN_USER}":nomad /nomad/config
     fi
 
-    set -- su-exec nomad:nomad "$@"
+    set -- su-exec "${NOMAD_RUN_USER}":nomad "$@"
 fi
 
 exec "$@"
