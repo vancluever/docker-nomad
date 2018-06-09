@@ -126,7 +126,7 @@ docker run \
 Note that `AGENTOPTS` here represents the agent options that would need to be
 added to agent, example: `-server` or `-client`.
 
-## Mounting the configuration directory
+### Mounting the Configuration Directory
 
 The configuration directory can be shared too, in case you want to load
 configuration direct from the host:
