@@ -57,38 +57,55 @@ This means a few things:
 * You will also need `SYS_ADMIN` capabilities, which are not granted to the
   container by default, so you will need to add these with `cap-add` (again, see
   below).
+* In order for containerized jobs to be able to be run properly, you will need
+  to share your Nomad data directory (defaults to `/nomad/data`) from the host
+  machine to the container. The path to data directory in the container **must**
+  match the path on the host - this is due to how Nomad shares certain
+  directories during job execution.  `NOMAD_DATA_DIR` must also be set with this
+  directory.
 
 Note that depending on _how_ you run your Nomad jobs, privileges, capabilities,
 or shared directories above what is mentioned may also be needed.
 
-#### Basic Docker example
+### Directory permission information for shared volumes
 
-The following examples are basic examples of what is necessary to run Nomad
-the Nomad image and have it successfully execute containers. The key takeaways
-are:
+The config and data directories have their permissions reset to that
+of the running Nomad process (usually `root:nomad` or `nomad:nomad`, depending
+on the value of `NOMAD_RUN_ROOT`) to ensure proper access to the data. Keep this
+in mind when designing your system's filesystem layout.
+
+### Examples
+
+The following examples are basic examples of what is necessary to run the Nomad
+image and have it successfully execute containers. The key takeaways are:
 
 * The docker socket is shared with the host.
 * `/tmp` is shared with the host so that the default syslog sockets that Nomad
   creates for allocations work.
+* On some examples, `/tmp/nomad/data` is shared from the host at the same path
+  within the Nomad container, and `NOMAD_DATA_DIR` is set to the appropriate
+  path so that Nomad configures with that data directory set.
 * `NOMAD_RUN_ROOT` works to grant appropriate permissions for access such to
   things such as the Docker socket.
 * `SYS_ADMIN` capabilities are added so that Nomad can perform general
   operations such as mounting and unmounting directories.
 
-##### Host networking
+#### Host networking
 
 ```
 docker run \
   --cap-add=SYS_ADMIN \
+  --env=NOMAD_DATA_DIR=/tmp/nomad/data \
   --env=NOMAD_RUN_ROOT=1 \
   --net=host \
   --rm \
   --volume=/tmp:/tmp \
+  --volume=/tmp/nomad/data:/tmp/nomad/data \
   --volume=/var/run/docker.sock:/var/run/docker.sock \
   vancluever/nomad
 ```
 
-##### Non-host networking with Nomad API endpoint exposed
+#### Non-host networking with Nomad API endpoint exposed
 
 Note the extra options as shown below to not only publish the API endpoint, but
 also to ensure Nomad listens on all IPv4 addresses.
@@ -96,43 +113,34 @@ also to ensure Nomad listens on all IPv4 addresses.
 ```
 docker run \
   --cap-add=SYS_ADMIN \
+  --env=NOMAD_DATA_DIR=/tmp/nomad/data \
   --env=NOMAD_RUN_ROOT=1 \
-  --publish=4646:4646
+  --publish=4646:4646 \
   --rm \
   --volume=/tmp:/tmp \
+  --volume=/tmp/nomad/data:/tmp/nomad/data \
   --volume=/var/run/docker.sock:/var/run/docker.sock \
   vancluever/nomad agent -dev -bind=0.0.0.0
 ```
 
+#### CoreOS systemd unit example
 
-## Running with Data Dir Mounted
-
-If you are running Nomad just as an easy way to get the software, but
-otherwise are running off the host, you may need to mount the data directory
-to the host:
+If you run the Nomad image as a service (such as on CoreOS), you will want to do
+something along the lines of the following:
 
 ```
-docker run \
-  --cap-add=SYS_ADMIN \
-  --env=NOMAD_RUN_ROOT=1 \
-  --net=host \
-  --rm \
-  --volume /nomad/data:/nomad/data \
-  --volume=/tmp:/tmp \
-  --volume=/var/run/docker.sock:/var/run/docker.sock \
-  vancluever/nomad agent AGENTOPTS
-```
+[Unit]
+Description=HashiCorp Nomad
+After=docker.service
+Requires=docker.service
 
-Note that `AGENTOPTS` here represents the agent options that would need to be
-added to agent, example: `-server` or `-client`.
-
-### Mounting the Configuration Directory
-
-The configuration directory can be shared too, in case you want to load
-configuration direct from the host:
-
-```
-docker run \
+[Service]
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker kill nomad
+ExecStartPre=-/usr/bin/docker rm nomad
+ExecStartPre=/usr/bin/docker pull nomad:VERSION
+ExecStart=/usr/bin/docker run \
+  --name=nomad \
   --cap-add=SYS_ADMIN \
   --env=NOMAD_RUN_ROOT=1 \
   --net=host \
@@ -141,12 +149,26 @@ docker run \
   --volume /nomad/data:/nomad/data \
   --volume=/tmp:/tmp \
   --volume=/var/run/docker.sock:/var/run/docker.sock \
-  vancluever/nomad agent AGENTOPTS
+  vancluever/nomad:VERSION agent -server -client
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Note that the config and data directories have their permissions reset to that
-of the running Nomad process (usually `root:nomad` or `nomad:nomad`, depending
-on the value of `NOMAD_RUN_ROOT`) to ensure proper access to the data.
+Note that you will need to set VERSION to the version of Nomad you want to run.
+Also, unless you plan on using a directory other than `/nomad`, you don't need
+to set `NOMAD_DATA_DIR`, as the default data directory is not changing from the
+default.
+
+The container's [entrypoint script][entrypoint-script] adds some pre-existing
+configuration. See the script for futher details and take care to not overwrite
+any of the values, namely having to do with directories.
+
+[entrypoint-script]: https://github.com/vancluever/docker-nomad/blob/master/0.X/docker-entrypoint.sh
+
+Finally note that this example also does not include any bootstrapping data or
+what not, and won't work on its own. You may want to set it up in tandem with
+the [Consul image][official-consul-image].
 
 ## Further Details
 

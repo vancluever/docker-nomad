@@ -21,12 +21,19 @@ if [ -n "$NOMAD_BIND_INTERFACE" ]; then
   echo "==> Found address '$NOMAD_BIND_ADDRESS' for interface '$NOMAD_BIND_INTERFACE', setting bind option..."
 fi
 
-# NOMAD_DATA_DIR is exposed as a volume for possible persistent storage. The
-# NOMAD_CONFIG_DIR isn't exposed as a volume but you can compose additional
-# config files in there if you use this image as a base, or use NOMAD_LOCAL_CONFIG
-# below.
-NOMAD_DATA_DIR=/nomad/data
-NOMAD_CONFIG_DIR=/nomad/config
+# Due to how sensitive Nomad is to mounting, we don't create any volumes for
+# Nomad data or config. You will probably want these exposed to the host.
+#
+# Depending on your setup, you may want these in alternate locations other than
+# the default /nomad paths, but if you do this, you need to also reconfigure
+# them here by supplying the NOMAD_DATA_DIR and NOMAD_CONFIG_DIR environment
+# variables.
+if [ -z "${NOMAD_DATA_DIR}" ]; then
+  NOMAD_DATA_DIR=/nomad/data
+fi
+if [ -z "${NOMAD_CONFIG_DIR}" ]; then
+  NOMAD_CONFIG_DIR=/nomad/config
+fi
 
 # If NOMAD_RUN_ROOT is selected, then run as root. This will be necessary to
 # run pretty much any job on the host, so it needs to be set for client and
@@ -74,11 +81,11 @@ fi
 if [ "$1" = 'nomad' ]; then
     # If the data or config dirs are bind mounted then chown them.
     # Note: This checks for root ownership as that's the most common case.
-    if [ "$(stat -c %u /nomad/data)" != "$(id -u ${NOMAD_RUN_USER})" ]; then
-        chown "${NOMAD_RUN_USER}":nomad /nomad/data
+    if [ "$(stat -c %u "${NOMAD_DATA_DIR}")" != "$(id -u ${NOMAD_RUN_USER})" ]; then
+        chown "${NOMAD_RUN_USER}":nomad "${NOMAD_DATA_DIR}"
     fi
-    if [ "$(stat -c %u /nomad/config)" != "$(id -u ${NOMAD_RUN_USER})" ]; then
-        chown "${NOMAD_RUN_USER}":nomad /nomad/config
+    if [ "$(stat -c %u "${NOMAD_CONFIG_DIR}")" != "$(id -u ${NOMAD_RUN_USER})" ]; then
+        chown "${NOMAD_RUN_USER}":nomad "${NOMAD_CONFIG_DIR}"
     fi
 
     set -- su-exec "${NOMAD_RUN_USER}":nomad "$@"

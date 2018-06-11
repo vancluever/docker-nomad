@@ -23,9 +23,6 @@ RUN mkdir -p /nomad/data && \
     mkdir -p /nomad/config && \
     chown -R nomad:nomad /nomad
 
-# Expose the nomad data directory as a volume since there's mutable state in there.
-VOLUME /nomad/data
-
 # Server RPC is used for internal RPC communication between agents and servers,
 # and for inter-server traffic for the consensus algorithm (raft).
 EXPOSE 4647
