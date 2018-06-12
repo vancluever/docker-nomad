@@ -1,7 +1,7 @@
 .PHONY: bin image push release clean
 
 TAG=vancluever/nomad
-VERSION=0.8.3
+VERSION=0.8.4
 
 GO_VERSION=1.10.2
 
@@ -14,11 +14,15 @@ bin:
 	cd $$GOPATH/src/github.com/hashicorp/nomad && \
 	git checkout v$(VERSION) && \
 	go build --ldflags "all= \
-    -X github.com/hashicorp/nomad/version.GitCommit=$$(git rev-parse HEAD) \
-    " -o /tmp/pkg/nomad'
+		-X github.com/hashicorp/nomad/version.GitCommit=$$(git rev-parse HEAD) \
+		" -o /tmp/pkg/nomad'
 
 image: bin
-	docker build --tag $(TAG):latest --tag $(TAG):$(VERSION) 0.X/
+	docker build \
+		--tag $(TAG):latest \
+		--tag $(TAG):$(VERSION) \
+		--build-arg NOMAD_VERSION=$(VERSION) \
+		0.X/
 
 push: image
 	docker push $(TAG):latest

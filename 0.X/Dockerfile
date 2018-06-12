@@ -2,7 +2,8 @@ FROM alpine:3.7
 MAINTAINER Chris Marchesi <chrism@vancluevertech.com> (@vancluever)
 
 # This is the release of Nomad to pull in.
-ENV NOMAD_VERSION=0.8.3
+ARG NOMAD_VERSION
+ENV NOMAD_VERSION=${NOMAD_VERSION}
 
 # Create a nomad user and group first so the IDs get set the same way, even as
 # the rest of this may change over time.
