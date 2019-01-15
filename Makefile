@@ -9,13 +9,14 @@ bin:
 	rm -rf 0.X/pkg
 	mkdir -p 0.X/pkg
 	docker run --rm -v $(shell pwd)/0.X/pkg:/tmp/pkg golang:$(GO_VERSION)-alpine sh -x -c '\
-	apk add --no-cache alpine-sdk && \
+	apk add --no-cache alpine-sdk bash nodejs yarn && \
 	go get -d github.com/hashicorp/nomad && \
+	go get github.com/jteeuwen/go-bindata/... && \
+	go get github.com/elazarl/go-bindata-assetfs/... && \
 	cd $$GOPATH/src/github.com/hashicorp/nomad && \
 	git checkout v$(VERSION) && \
-	go build --ldflags "all= \
-		-X github.com/hashicorp/nomad/version.GitCommit=$$(git rev-parse HEAD) \
-		" -o /tmp/pkg/nomad'
+	make GO_TAGS=ui ember-dist static-assets pkg/linux_amd64/nomad && \
+	cp pkg/linux_amd64/nomad /tmp/pkg'
 
 image: bin
 	docker build \
