@@ -1,4 +1,4 @@
-FROM alpine:3.7
+FROM alpine:3.9
 MAINTAINER Chris Marchesi <chrism@vancluevertech.com> (@vancluever)
 
 # This is the release of Nomad to pull in.
